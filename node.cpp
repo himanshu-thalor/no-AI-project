@@ -4,20 +4,26 @@
 #include <unistd.h>
 using namespace std ;
 int main (int argc  , char * argv[] ){
-   if (argc != 4) {
-        cout << "Usage: ./node <oracle-ip> <own-ip> <udp-port>\n";
+   if (argc != 5){
+        cout << "Usage: ./node <oracle-ip> <own-ip> <udp-port> <oracle-port>\n";
         return 1;
     }
-    string orcale_ip  = argv[1] ; 
-    int port = atoi(argv[3]);
+   string oracle_ip = argv[1];
     string own_ip = argv[2];
+    int udp_port = atoi(argv[3]);
+    int oracle_port = atoi(argv[4]);
 
 
-    //udp to connect with other nodes 
+    //creating udp port 
     int udp_socket = socket(AF_INET,SOCK_DGRAM,0);
-    socketaddr_in own_address{};
+    if (udp_socket < 0) {
+    perror("UDP socket creation failed");
+    return 1;
+   }
+
+    sockaddr_in own_address{};
     own_address.sin_family = AF_INET;
-    own_address.sin_port = htons(port);
+    own_address.sin_port = htons(udp_port);
     inet_pton(AF_INET , own_ip.c_str() , &own_address.sin_addr);
     bind(udp_socket , (sockaddr*)&own_address , sizeof(own_address));
 
@@ -30,7 +36,7 @@ int main (int argc  , char * argv[] ){
     inet_pton(AF_INET  orcale_ip.c_str(), &orcale_address.sin_addr);
     connect(tcp_socket , (sockaddr*)&orcale_address , sizeof(orcale_address));
 
-    
+
 
 
 
