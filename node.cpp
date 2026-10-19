@@ -37,4 +37,43 @@ int main(int argc, char *argv[])
 
     inet_pton(AF_INET, oracle_ip.c_str(), &oracle_address.sin_addr);
     connect(tcp_socket, (sockaddr *)&oracle_address, sizeof(oracle_address));
+
+    unsigned char reg[7];
+    reg[0] = 1;
+    memcpy(reg + 1, &own_address.sin_addr, 4);
+    uint16_t p = htons(udp_port);
+    memcpy(reg + 5, &p, 2);
+    send(tcp_socket, reg, 7, 0);
+
+    cout << "Registration sent. Node is listening on UDP port "
+         << udp_port << endl;
+
+    // Keep the node alive and receive UDP messages
+    char buffer[2048];
+
+    while (true)
+    {
+        sockaddr_in sender{};
+        socklen_t sender_len = sizeof(sender);
+
+        ssize_t n = recvfrom(
+            udp_socket,
+            buffer,
+            sizeof(buffer),
+            0,
+            (sockaddr *)&sender,
+            &sender_len);
+
+        cout << "Received " << n << " bytes from "
+             << inet_ntoa(sender.sin_addr) << ":"
+             << ntohs(sender.sin_port) << endl;
+
+        cout << "Message: ";
+        cout.write(buffer, n);
+        cout << endl;
+    }
+
+    close(tcp_socket);
+    close(udp_socket);
+    return 0;
 }
