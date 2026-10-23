@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
                     if (j > 0)
                         cout << "\t";
                     // row i only holds what node i reported; show a link only if both ends report it
-                    cout << (graph[j][i] == -1 ? -1 : graph[i][j]);
+                    cout << graph[i][j];
                 }
                 cout << endl;
             }
