@@ -60,13 +60,13 @@ int main(int argc, char *argv[])
     //getting ip and port info 
     if (argc != 5)
     {
-        cout << "Usage: ./node <oracle-ip> <own-ip> <udp-port> <oracle-port>\n";
+        cout << "Usage: ./node <oracle-ip> <own-ip> <oracle-port> <udp-port>\n";
         return 1;
     }
     string oracle_ip = argv[1];
     string own_ip = argv[2];
-    int udp_port = atoi(argv[3]);
-    int oracle_port = atoi(argv[4]);
+    int oracle_port = atoi(argv[3]);
+    int udp_port = atoi(argv[4]);
 
     // creating udp port
     int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
