@@ -143,30 +143,16 @@ int main(int argc, char *argv[])
         // Oracle Node update (TCP)
         if (FD_ISSET(tcp_socket, &read_fds))
         {
-            char header[3];
+            char header[2];
             if (!receive_exact(tcp_socket, header, sizeof(header)))
                 break;
 
-            my_id = header[1];
-            int u = my_id - 'A';
-            if (u + 1 > num_nodes)
-                num_nodes = u + 1;
-
-            int count = (unsigned char)header[2];
+            int count = (unsigned char)header[1];
             vector<char> entries(count * 11);
             if (!receive_exact(tcp_socket, entries.data(), entries.size()))
                 break;
 
             neighbors.clear();
-            if (u >= 0 && u < 26)
-            {
-                for (int j = 0; j < 26; ++j)
-                {
-                    if (j != u) graph[u][j] = -1;
-                }
-            }
-
-            cout << my_id << "=0";
             for (int i = 0; i < count; ++i)
             {
                 char *p = entries.data() + i * 11;
@@ -181,18 +167,29 @@ int main(int argc, char *argv[])
                 memcpy(&n_addr.sin_addr, p + 5, 4);
                 memcpy(&n_addr.sin_port, p + 9, 2);
 
-                neighbors.push_back({n_id, n_addr, cost});
+                // the zero-cost tuple tells us our own alphabet
+                if (cost == 0)
+                    my_id = n_id;
+                else
+                    neighbors.push_back({n_id, n_addr, cost});
+            }
 
-                int v = n_id - 'A';
-                if (u >= 0 && u < 26 && v >= 0 && v < 26)
-                {
-                    if (v + 1 > num_nodes)
-                        num_nodes = v + 1;
-                    graph[u][v] = cost;
-                    graph[v][u] = cost;
-                }
+            int u = my_id - 'A';
+            if (u + 1 > num_nodes)
+                num_nodes = u + 1;
+            for (int j = 0; j < 26; ++j)
+            {
+                if (j != u) graph[u][j] = -1;
+            }
 
-                cout << "," << n_id << "=" << cost;
+            cout << my_id << "=0";
+            for (int i = 0; i < neighbors.size(); ++i)
+            {
+                int v = neighbors[i].id - 'A';
+                if (v + 1 > num_nodes)
+                    num_nodes = v + 1;
+                graph[u][v] = neighbors[i].cost;
+                cout << "," << neighbors[i].id << "=" << neighbors[i].cost;
             }
             cout << endl;
 
@@ -244,7 +241,6 @@ int main(int argc, char *argv[])
                                     if (v + 1 > num_nodes)
                                         num_nodes = v + 1;
                                     graph[u][v] = cost;
-                                    graph[v][u] = cost;
                                 }
                             }
 
@@ -277,7 +273,8 @@ int main(int argc, char *argv[])
                 {
                     if (j > 0)
                         cout << "\t";
-                    cout << graph[i][j];
+                    // row i only holds what node i reported; show a link only if both ends report it
+                    cout << (graph[j][i] == -1 ? -1 : graph[i][j]);
                 }
                 cout << endl;
             }
