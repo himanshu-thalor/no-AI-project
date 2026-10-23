@@ -3,6 +3,20 @@
 #include <sys/socket.h>
 #include <unistd.h>
 using namespace std;
+
+bool receive_exact(int fd, void *buffer, size_t length)
+{
+    char *bytes = static_cast<char *>(buffer);
+    size_t received = 0;
+    while (received < length)
+    {
+        ssize_t n = recv(fd, bytes + received, length - received, 0);
+        if (n <= 0) return false;
+        received += static_cast<size_t>(n);
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 5)
@@ -27,13 +41,18 @@ int main(int argc, char *argv[])
     own_address.sin_family = AF_INET;
     own_address.sin_port = htons(udp_port);
     inet_pton(AF_INET, own_ip.c_str(), &own_address.sin_addr);
-    bind(udp_socket, (sockaddr *)&own_address, sizeof(own_address));
+    if (bind(udp_socket, (sockaddr *)&own_address, sizeof(own_address)) < 0)
+    {
+        perror("UDP bind failed");
+        close(udp_socket);
+        return 1;
+    }
 
     // tcp now
     int tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in oracle_address{};
     oracle_address.sin_family = AF_INET;
-    oracle_address.sin_port = htons(5000);
+    oracle_address.sin_port = htons(oracle_port);
 
     inet_pton(AF_INET, oracle_ip.c_str(), &oracle_address.sin_addr);
     connect(tcp_socket, (sockaddr *)&oracle_address, sizeof(oracle_address));
@@ -48,28 +67,26 @@ int main(int argc, char *argv[])
     cout << "Registration sent. Node is listening on UDP port "
          << udp_port << endl;
 
-    // Keep the node alive and receive UDP messages
-    char buffer[2048];
-
+    // Receive LINK-STATE messages from the Oracle over TCP
     while (true)
     {
-        sockaddr_in sender{};
-        socklen_t sender_len = sizeof(sender);
+        unsigned char header[3];
+        if (!receive_exact(tcp_socket, header, sizeof(header)))
+            break;
 
-        ssize_t n = recvfrom(
-            udp_socket,
-            buffer,
-            sizeof(buffer),
-            0,
-            (sockaddr *)&sender,
-            &sender_len);
+        size_t count = header[2];
+        vector<unsigned char> entries(count * 11);
+        if (!receive_exact(tcp_socket, entries.data(), entries.size()))
+            break;
 
-        cout << "Received " << n << " bytes from "
-             << inet_ntoa(sender.sin_addr) << ":"
-             << ntohs(sender.sin_port) << endl;
-
-        cout << "Message: ";
-        cout.write(buffer, n);
+        cout << static_cast<char>(header[1]) << "=0";
+        for (size_t i = 0; i < count; ++i)
+        {
+            uint32_t cost;
+            memcpy(&cost, entries.data() + i * 11 + 1, sizeof(cost));
+            cout << "," << static_cast<char>(entries[i * 11])
+                 << "=" << ntohl(cost);
+        }
         cout << endl;
     }
 
